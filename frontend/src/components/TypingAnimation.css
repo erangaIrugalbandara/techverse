@@ -1,16 +1,18 @@
 .typing-container {
-  font-size: 1.5rem;
-  color: #333;
-  min-height: 2rem;
+  font-size: 18px;
+  color: var(--text-muted);
+  min-height: 28px;
+  line-height: 1.6;
 }
 
 .typed-text {
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .cursor {
-  animation: blink 0.7s infinite;
-  font-weight: 100;
+  color: var(--accent);
+  animation: blink 0.8s infinite;
+  font-weight: 300;
   margin-left: 2px;
 }
 

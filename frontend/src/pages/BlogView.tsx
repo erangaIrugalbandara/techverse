@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import './BlogView.css';
 
 interface Blog {
   id: number;
   title: string;
   content: string;
+  tags: string[];
+  read_time: number;
   created_at: string;
   updated_at: string;
 }
@@ -43,29 +46,72 @@ const BlogView = () => {
     });
   };
 
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+  };
+
   if (loading) {
     return <div className="blog-view loading">Loading...</div>;
   }
 
   if (!blog) {
-    return <div className="blog-view error">Blog not found</div>;
+    return <div className="blog-view error">Post not found</div>;
   }
 
   return (
     <div className="blog-view">
-      <button className="back-button" onClick={() => navigate('/')}>
-        ← Back to Home
+      <button className="back-button" onClick={() => navigate(-1)}>
+        ← Back
       </button>
+      
       <article className="blog-article">
-        <h1 className="blog-title">{blog.title}</h1>
-        <p className="blog-date">
-          Published on {formatDate(blog.created_at)}
-          {blog.updated_at !== blog.created_at && ` • Updated on ${formatDate(blog.updated_at)}`}
-        </p>
-        <div 
-          className="blog-content"
-          dangerouslySetInnerHTML={{ __html: blog.content }}
-        />
+        <header className="blog-header">
+          <h1 className="blog-title">{blog.title}</h1>
+          <div className="blog-meta">
+            <span className="blog-date">{formatDate(blog.created_at)}</span>
+            <span className="blog-separator">•</span>
+            <span className="blog-read-time">{blog.read_time} min read</span>
+          </div>
+          {blog.tags.length > 0 && (
+            <div className="blog-tags">
+              {blog.tags.map((tag, index) => (
+                <span key={index} className="blog-tag">{tag}</span>
+              ))}
+            </div>
+          )}
+        </header>
+        
+        <div className="blog-content">
+          <ReactMarkdown
+            components={{
+              code: ({ node, inline, className, children, ...props }) => {
+                const codeString = String(children).replace(/\n$/, '');
+                return inline ? (
+                  <code className={className} {...props}>
+                    {children}
+                  </code>
+                ) : (
+                  <div className="code-block">
+                    <button
+                      className="copy-button"
+                      onClick={() => copyCode(codeString)}
+                      title="Copy code"
+                    >
+                      Copy
+                    </button>
+                    <pre>
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    </pre>
+                  </div>
+                );
+              }
+            }}
+          >
+            {blog.content}
+          </ReactMarkdown>
+        </div>
       </article>
     </div>
   );
