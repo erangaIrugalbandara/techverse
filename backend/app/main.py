@@ -1,46 +1,58 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime, timedelta
-from passlib.context import CryptContext
 from jose import JWTError, jwt
+from dotenv import load_dotenv
+import bcrypt
+import os
 import re
+from .database import users_collection, blogs_collection
+from .cloudinary_config import upload_image
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(title="Techverse Blog API")
 
 # Security
-SECRET_KEY = "your-secret-key-change-in-production"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 10080))
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# In-memory storage (replace with database in production)
-users = []
-blogs = []
-user_id_counter = 1
-blog_id_counter = 1
-
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    # Bcrypt has a max password length of 72 bytes, truncate if necessary
+    """Hash password using bcrypt"""
+    # Encode password to bytes
+    password_bytes = password.encode('utf-8')
+    # Generate salt and hash
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    # Return as string
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
+    """Verify password against bcrypt hash"""
+    # Encode both to bytes
+    password_bytes = plain_password.encode('utf-8')
+    hashed_bytes = hashed_password.encode('utf-8')
+    # Verify
+    return bcrypt.checkpw(password_bytes, hashed_bytes)
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
@@ -49,15 +61,15 @@ def create_access_token(data: dict) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
+        user_id: str = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication")
         
-        user = next((u for u in users if u["id"] == int(user_id)), None)
+        user = await users_collection.find_one({"_id": user_id})
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         return user
@@ -65,11 +77,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=401, detail="Invalid authentication")
 
 
-def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))) -> Optional[dict]:
+async def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))) -> Optional[dict]:
     if credentials is None:
         return None
     try:
-        return get_current_user(credentials)
+        return await get_current_user(credentials)
     except:
         return None
 
@@ -95,7 +107,7 @@ class UserLogin(BaseModel):
 
 
 class User(BaseModel):
-    id: int
+    id: str
     display_name: str
     username: str
     email: str
@@ -105,7 +117,7 @@ class User(BaseModel):
 
 
 class UserProfile(BaseModel):
-    id: int
+    id: str
     display_name: str
     username: str
     bio: Optional[str] = None
@@ -131,14 +143,14 @@ class BlogUpdate(BaseModel):
 
 
 class Blog(BaseModel):
-    id: int
+    id: str
     title: str
     content: str
     excerpt: Optional[str] = None
     tags: List[str] = []
     status: str = "draft"
     read_time: int = 1
-    author_id: int
+    author_id: str
     author_name: str
     author_username: str
     created_at: str
@@ -146,26 +158,31 @@ class Blog(BaseModel):
 
 
 @app.get("/health")
-def healthcheck() -> dict:
+async def healthcheck() -> dict:
     return {"status": "ok"}
 
 
 # Auth Endpoints
 @app.post("/api/auth/signup")
-def signup(user_data: UserCreate):
+async def signup(user_data: UserCreate):
     """Create a new user account"""
-    global user_id_counter
     
     # Check if email or username already exists
-    if any(u["email"] == user_data.email for u in users):
+    existing_email = await users_collection.find_one({"email": user_data.email})
+    if existing_email:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    if any(u["username"] == user_data.username for u in users):
+    existing_username = await users_collection.find_one({"username": user_data.username})
+    if existing_username:
         raise HTTPException(status_code=400, detail="Username already taken")
+    
+    # Generate unique ID
+    import uuid
+    user_id = str(uuid.uuid4())
     
     now = datetime.now().isoformat()
     user = {
-        "id": user_id_counter,
+        "_id": user_id,
         "display_name": user_data.display_name,
         "username": user_data.username,
         "email": user_data.email,
@@ -174,17 +191,17 @@ def signup(user_data: UserCreate):
         "avatar": None,
         "created_at": now
     }
-    users.append(user)
-    user_id_counter += 1
+    
+    await users_collection.insert_one(user)
     
     # Create access token
-    access_token = create_access_token({"sub": str(user["id"])})
+    access_token = create_access_token({"sub": user_id})
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
-            "id": user["id"],
+            "id": user_id,
             "display_name": user["display_name"],
             "username": user["username"],
             "email": user["email"],
@@ -195,20 +212,20 @@ def signup(user_data: UserCreate):
 
 
 @app.post("/api/auth/login")
-def login(credentials: UserLogin):
+async def login(credentials: UserLogin):
     """Sign in to an existing account"""
-    user = next((u for u in users if u["email"] == credentials.email), None)
+    user = await users_collection.find_one({"email": credentials.email})
     
     if not user or not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
-    access_token = create_access_token({"sub": str(user["id"])})
+    access_token = create_access_token({"sub": user["_id"]})
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
-            "id": user["id"],
+            "id": user["_id"],
             "display_name": user["display_name"],
             "username": user["username"],
             "email": user["email"],
@@ -219,10 +236,10 @@ def login(credentials: UserLogin):
 
 
 @app.get("/api/auth/me")
-def get_me(current_user: dict = Depends(get_current_user)):
+async def get_me(current_user: dict = Depends(get_current_user)):
     """Get current user info"""
     return {
-        "id": current_user["id"],
+        "id": current_user["_id"],
         "display_name": current_user["display_name"],
         "username": current_user["username"],
         "email": current_user["email"],
@@ -231,17 +248,36 @@ def get_me(current_user: dict = Depends(get_current_user)):
     }
 
 
+@app.post("/api/upload/avatar")
+async def upload_avatar(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Upload user avatar"""
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    # Upload to Cloudinary
+    contents = await file.read()
+    avatar_url = upload_image(contents, folder="techverse/avatars")
+    
+    # Update user in database
+    await users_collection.update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {"avatar": avatar_url}}
+    )
+    
+    return {"avatar_url": avatar_url}
+
+
 @app.get("/api/users/{username}", response_model=UserProfile)
-def get_user_profile(username: str):
+async def get_user_profile(username: str):
     """Get user profile by username"""
-    user = next((u for u in users if u["username"] == username), None)
+    user = await users_collection.find_one({"username": username})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    post_count = len([b for b in blogs if b["author_id"] == user["id"] and b["status"] == "published"])
+    post_count = await blogs_collection.count_documents({"author_id": user["_id"], "status": "published"})
     
     return {
-        "id": user["id"],
+        "id": user["_id"],
         "display_name": user["display_name"],
         "username": user["username"],
         "bio": user["bio"],
@@ -251,129 +287,140 @@ def get_user_profile(username: str):
 
 
 @app.get("/api/blogs", response_model=List[Blog])
-def get_blogs(
+async def get_blogs(
     status: Optional[str] = None,
     tag: Optional[str] = None,
     search: Optional[str] = None,
-    author_id: Optional[int] = None,
+    author_id: Optional[str] = None,
     current_user: Optional[dict] = Depends(get_current_user_optional)
 ):
     """Get all blogs with optional filters"""
-    filtered_blogs = blogs
+    query = {}
     
     # Filter by author
     if author_id:
-        filtered_blogs = [b for b in filtered_blogs if b["author_id"] == author_id]
+        query["author_id"] = author_id
     
-    # Filter by status - only show published unless it's the author
+    # Filter by status
     if current_user:
         if status:
-            filtered_blogs = [
-                b for b in filtered_blogs 
-                if b["status"] == status and (b["status"] == "published" or b["author_id"] == current_user["id"])
-            ]
-        else:
-            filtered_blogs = [
-                b for b in filtered_blogs 
-                if b["status"] == "published" or b["author_id"] == current_user["id"]
+            query["status"] = status
+        # Show published posts or user's own posts
+        if "status" not in query:
+            query["$or"] = [
+                {"status": "published"},
+                {"author_id": current_user["_id"]}
             ]
     else:
-        filtered_blogs = [b for b in filtered_blogs if b["status"] == "published"]
+        query["status"] = "published"
     
+    # Filter by tag
     if tag:
-        filtered_blogs = [b for b in filtered_blogs if tag in b["tags"]]
+        query["tags"] = tag
     
+    # Search
     if search:
-        search_lower = search.lower()
-        filtered_blogs = [
-            b for b in filtered_blogs 
-            if search_lower in b["title"].lower() or search_lower in b["content"].lower()
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"content": {"$regex": search, "$options": "i"}}
         ]
     
-    return sorted(filtered_blogs, key=lambda x: x["updated_at"], reverse=True)
+    blogs = await blogs_collection.find(query).sort("updated_at", -1).to_list(length=None)
+    
+    # Convert _id to id for response
+    for blog in blogs:
+        blog["id"] = blog.pop("_id")
+    
+    return blogs
 
 
 @app.get("/api/blogs/{blog_id}", response_model=Blog)
-def get_blog(blog_id: int, current_user: Optional[dict] = Depends(get_current_user_optional)):
+async def get_blog(blog_id: str, current_user: Optional[dict] = Depends(get_current_user_optional)):
     """Get a specific blog by ID"""
-    blog = next((b for b in blogs if b["id"] == blog_id), None)
+    blog = await blogs_collection.find_one({"_id": blog_id})
     if not blog:
         raise HTTPException(status_code=404, detail="Blog not found")
     
     # Check if user can view this blog
-    if blog["status"] == "draft" and (not current_user or blog["author_id"] != current_user["id"]):
+    if blog["status"] == "draft" and (not current_user or blog["author_id"] != current_user["_id"]):
         raise HTTPException(status_code=404, detail="Blog not found")
     
+    blog["id"] = blog.pop("_id")
     return blog
 
 
 @app.post("/api/blogs", response_model=Blog)
-def create_blog(blog_data: BlogCreate, current_user: dict = Depends(get_current_user)):
+async def create_blog(blog_data: BlogCreate, current_user: dict = Depends(get_current_user)):
     """Create a new blog post"""
-    global blog_id_counter
+    import uuid
     
+    blog_id = str(uuid.uuid4())
     now = datetime.now().isoformat()
     clean_content = re.sub(r'<[^>]+>|[#*`]', '', blog_data.content)
     excerpt = blog_data.excerpt or clean_content[:150]
     
     blog = {
-        "id": blog_id_counter,
+        "_id": blog_id,
         "title": blog_data.title,
         "content": blog_data.content,
         "excerpt": excerpt,
         "tags": blog_data.tags or [],
         "status": blog_data.status or "draft",
         "read_time": calculate_read_time(blog_data.content),
-        "author_id": current_user["id"],
+        "author_id": current_user["_id"],
         "author_name": current_user["display_name"],
         "author_username": current_user["username"],
         "created_at": now,
         "updated_at": now
     }
-    blogs.append(blog)
-    blog_id_counter += 1
+    
+    await blogs_collection.insert_one(blog)
+    blog["id"] = blog.pop("_id")
     return blog
 
 
 @app.put("/api/blogs/{blog_id}", response_model=Blog)
-def update_blog(blog_id: int, blog_data: BlogUpdate, current_user: dict = Depends(get_current_user)):
+async def update_blog(blog_id: str, blog_data: BlogUpdate, current_user: dict = Depends(get_current_user)):
     """Update an existing blog post"""
-    blog = next((b for b in blogs if b["id"] == blog_id), None)
+    blog = await blogs_collection.find_one({"_id": blog_id})
     if not blog:
         raise HTTPException(status_code=404, detail="Blog not found")
     
     # Check if user owns this blog
-    if blog["author_id"] != current_user["id"]:
+    if blog["author_id"] != current_user["_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to edit this blog")
     
-    if blog_data.title is not None:
-        blog["title"] = blog_data.title
-    if blog_data.content is not None:
-        blog["content"] = blog_data.content
-        blog["read_time"] = calculate_read_time(blog_data.content)
-    if blog_data.excerpt is not None:
-        blog["excerpt"] = blog_data.excerpt
-    if blog_data.tags is not None:
-        blog["tags"] = blog_data.tags
-    if blog_data.status is not None:
-        blog["status"] = blog_data.status
-    blog["updated_at"] = datetime.now().isoformat()
+    update_data = {"updated_at": datetime.now().isoformat()}
     
-    return blog
+    if blog_data.title is not None:
+        update_data["title"] = blog_data.title
+    if blog_data.content is not None:
+        update_data["content"] = blog_data.content
+        update_data["read_time"] = calculate_read_time(blog_data.content)
+    if blog_data.excerpt is not None:
+        update_data["excerpt"] = blog_data.excerpt
+    if blog_data.tags is not None:
+        update_data["tags"] = blog_data.tags
+    if blog_data.status is not None:
+        update_data["status"] = blog_data.status
+    
+    await blogs_collection.update_one({"_id": blog_id}, {"$set": update_data})
+    
+    updated_blog = await blogs_collection.find_one({"_id": blog_id})
+    updated_blog["id"] = updated_blog.pop("_id")
+    return updated_blog
 
 
 @app.delete("/api/blogs/{blog_id}")
-def delete_blog(blog_id: int, current_user: dict = Depends(get_current_user)):
+async def delete_blog(blog_id: str, current_user: dict = Depends(get_current_user)):
     """Delete a blog post"""
-    global blogs
-    
-    blog = next((b for b in blogs if b["id"] == blog_id), None)
+    blog = await blogs_collection.find_one({"_id": blog_id})
     if not blog:
         raise HTTPException(status_code=404, detail="Blog not found")
     
     # Check if user owns this blog
-    if blog["author_id"] != current_user["id"]:
+    if blog["author_id"] != current_user["_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to delete this blog")
     
-    blogs = [b for b in blogs if b["id"] != blog_id]
+    await blogs_collection.delete_one({"_id": blog_id})
     return {"message": "Blog deleted successfully"}
