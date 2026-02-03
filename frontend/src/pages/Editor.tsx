@@ -332,7 +332,11 @@ const Editor = () => {
             />
             {!coverImage ? (
               <label htmlFor="cover-image-upload" className="add-cover-btn">
-                <span>📷</span> Add cover image
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="plus-icon-svg">
+                  <circle cx="12" cy="12" r="11" stroke="currentColor" strokeWidth="1"/>
+                  <path d="M12 7V17M7 12H17" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className="btn-text">Add cover image</span>
               </label>
             ) : (
               <div className="cover-image-preview">

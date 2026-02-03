@@ -562,9 +562,10 @@
 
 /* New Minimal Editor Styles */
 .editor-container {
-  max-width: 800px;
+  max-width: 720px;
   margin: 0 auto;
   padding: 0 var(--space-4) 100px;
+  text-align: left;
 }
 
 .editor-header {
@@ -576,21 +577,42 @@
   font-size: 42px;
   padding: var(--space-2) 0;
   width: 100%;
+  background: transparent;
+  color: #ffffff !important;
+  border: none;
+  outline: none;
+  font-family: var(--font-ui);
+  text-align: left;
+}
+
+.title-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .add-cover-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
+  gap: 12px;
+  color: #ffffff;
   cursor: pointer;
-  font-size: 14px;
-  padding: 8px 0;
-  transition: color var(--transition);
+  font-size: 16px;
+  padding: 12px 0;
+  transition: opacity 0.2s;
+  text-align: left;
 }
 
 .add-cover-btn:hover {
-  color: var(--text-primary);
+  opacity: 0.8;
+}
+
+.plus-icon-svg {
+  width: 24px;
+  height: 24px;
+  color: #ffffff;
+}
+
+.btn-text {
+  font-weight: 400;
 }
 
 .cover-image-preview {
@@ -640,11 +662,16 @@
   outline: none;
   resize: vertical;
   min-height: 400px;
-  font-size: 18px;
-  line-height: 1.8;
-  font-family: var(--font-ui); /* Or serif for better reading */
-  color: var(--text-primary);
+  font-size: 20px;
+  line-height: 1.6;
+  font-family: var(--font-ui);
+  color: #ffffff !important;
   background: transparent;
+  text-align: left;
+}
+
+.markdown-editor::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Sidebar Toggle */
