@@ -133,3 +133,56 @@
     grid-template-columns: 1fr;
   }
 }
+
+.view-toggle {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.view-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-size: 18px;
+  padding: 0;
+}
+
+.view-btn:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.view-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.blog-grid.list-view {
+  grid-template-columns: 1fr;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Adjust BlogCard internal layout for list view if necessary */
+.blog-grid.list-view .blog-card {
+  display: grid;
+  /* If BlogCard has image, maybe grid-template-columns: auto 1fr; */
+}
+
+@media (max-width: 768px) {
+  .view-toggle {
+    margin-left: 0;
+    margin-top: var(--space-2);
+  }
+}

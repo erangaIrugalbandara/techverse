@@ -479,3 +479,290 @@
   border-color: var(--border-hover);
   background: var(--bg-surface);
 }
+
+/* Additions for Cover Image */
+.editor-cover-image {
+  margin: var(--space-3) var(--space-3) 0 var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.cover-image-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: var(--bg-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition);
+}
+
+.cover-image-btn:hover {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.cover-image-preview {
+  margin-top: 10px;
+  position: relative;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.cover-image-preview img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  display: block;
+}
+
+.remove-cover-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background var(--transition);
+}
+
+.remove-cover-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.markdown-editor {
+  background-color: transparent;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.title-input {
+  color: var(--text-primary);
+}
+
+.title-input::placeholder {
+  color: var(--text-muted);
+}
+
+
+
+/* New Minimal Editor Styles */
+.editor-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 var(--space-4) 100px;
+}
+
+.editor-header {
+  padding-top: var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.title-input {
+  font-size: 42px;
+  padding: var(--space-2) 0;
+  width: 100%;
+}
+
+.add-cover-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 8px 0;
+  transition: color var(--transition);
+}
+
+.add-cover-btn:hover {
+  color: var(--text-primary);
+}
+
+.cover-image-preview {
+  position: relative;
+  border: none;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cover-image-preview img {
+  max-height: 400px;
+  width: 100%;
+  object-fit: cover;
+}
+
+.cover-image-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.change-cover-btn, .remove-cover-btn {
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.change-cover-btn:hover, .remove-cover-btn:hover {
+  background: rgba(0,0,0,0.8);
+}
+
+.editor-content {
+  margin-top: var(--space-4);
+  min-height: 50vh;
+}
+
+.markdown-editor {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: vertical;
+  min-height: 400px;
+  font-size: 18px;
+  line-height: 1.8;
+  font-family: var(--font-ui); /* Or serif for better reading */
+  color: var(--text-primary);
+  background: transparent;
+}
+
+/* Sidebar Toggle */
+.toggle-sidebar-btn {
+  position: fixed;
+  top: 80px;
+  left: var(--space-4);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  transition: all var(--transition);
+}
+
+.toggle-sidebar-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.editor-sidebar {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  bottom: 0;
+  width: 300px;
+  z-index: 15;
+  transform: translateX(-100%);
+  transition: transform var(--transition);
+  border-right: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.editor-page.sidebar-open .editor-sidebar {
+  transform: translateX(0);
+}
+
+.editor-page.sidebar-open .toggle-sidebar-btn {
+  left: 320px;
+}
+
+/* Bottom Actions Bar */
+.editor-actions-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+  z-index: 30;
+}
+
+.status-select-minimal {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  font-size: 14px;
+  margin-right: var(--space-2);
+  cursor: pointer;
+}
+
+.status-select-minimal:hover {
+  color: var(--text-primary);
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+}
+
+.text-error {
+  color: #ef4444;
+}
+
+.text-error:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+@media (max-width: 768px) {
+  .toggle-sidebar-btn {
+    top: auto;
+    bottom: 80px;
+    left: var(--space-4);
+  }
+  .editor-page.sidebar-open .toggle-sidebar-btn {
+    left: 260px;
+  }
+}
+
+
+.editor-main {
+  background: transparent !important;
+}
+

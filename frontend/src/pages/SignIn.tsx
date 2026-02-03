@@ -18,7 +18,7 @@ const SignIn = () => {
 
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/feed'); // Redirect to feed after login
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Invalid email or password');
     } finally {

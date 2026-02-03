@@ -20,7 +20,7 @@ const SignUp = () => {
 
     try {
       await signup(username, email, password, displayName || username);
-      navigate('/');
+      navigate('/feed'); // Redirect to feed after signup
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to create account');
     } finally {

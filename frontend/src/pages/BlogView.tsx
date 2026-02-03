@@ -5,13 +5,14 @@ import ReactMarkdown from 'react-markdown';
 import './BlogView.css';
 
 interface Blog {
-  id: number;
+  id: string;
   title: string;
   content: string;
   tags: string[];
   read_time: number;
   created_at: string;
   updated_at: string;
+  cover_image?: string;
 }
 
 const BlogView = () => {
@@ -22,11 +23,11 @@ const BlogView = () => {
 
   useEffect(() => {
     if (id) {
-      fetchBlog(parseInt(id));
+      fetchBlog(id);
     }
   }, [id]);
 
-  const fetchBlog = async (blogId: number) => {
+  const fetchBlog = async (blogId: string) => {
     try {
       const response = await axios.get(`http://localhost:8000/api/blogs/${blogId}`);
       setBlog(response.data);
@@ -80,6 +81,12 @@ const BlogView = () => {
             </div>
           )}
         </header>
+
+        {blog.cover_image && (
+          <div className="blog-cover-image">
+            <img src={blog.cover_image} alt={blog.title} />
+          </div>
+        )}
         
         <div className="blog-content">
           <ReactMarkdown

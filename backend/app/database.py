@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 import os
+import certifi
 
 # Load environment variables
 load_dotenv()
@@ -12,9 +13,8 @@ MONGODB_URI = os.getenv("MONGODB_URI")
 client = AsyncIOMotorClient(
     MONGODB_URI,
     tls=True,
-    tlsAllowInvalidCertificates=True,  # For development - remove in production
-    serverSelectionTimeoutMS=5000,
-    connectTimeoutMS=10000,
+    tlsAllowInvalidCertificates=True,
+    tlsCAFile=certifi.where()
 )
 
 db = client.techverse
@@ -22,3 +22,4 @@ db = client.techverse
 # Collections
 users_collection = db.users
 blogs_collection = db.blogs
+posts_collection = db.posts

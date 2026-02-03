@@ -23,42 +23,71 @@ const Navbar = () => {
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="navbar-container">
-        <Link to="/" className="navbar-logo">
+        <Link to={isAuthenticated ? "/feed" : "/"} className="navbar-logo">
           <span className="logo-icon">⚡</span>
           Techverse
         </Link>
         <ul className="navbar-menu">
-          <li>
-            <Link 
-              to="/" 
-              className={`navbar-link ${isActive('/') ? 'active' : ''}`}
-            >
-              Home
-            </Link>
-          </li>
+          {!isAuthenticated && (
+            <li>
+              <Link 
+                to="/" 
+                className={`navbar-link ${isActive('/') ? 'active' : ''}`}
+              >
+                Home
+              </Link>
+            </li>
+          )}
+          
+          {isAuthenticated && (
+            <li>
+              <Link 
+                to="/feed" 
+                className={`navbar-link ${isActive('/feed') ? 'active' : ''}`}
+              >
+                Feed
+              </Link>
+            </li>
+          )}
+          
           <li>
             <Link 
               to="/posts" 
               className={`navbar-link ${isActive('/posts') ? 'active' : ''}`}
             >
-              Posts
+              Blogs
             </Link>
           </li>
-          <li>
-            <Link 
-              to="/about" 
-              className={`navbar-link ${isActive('/about') ? 'active' : ''}`}
-            >
-              About
-            </Link>
-          </li>
+
           {isAuthenticated && (
             <li>
               <Link 
                 to="/editor" 
                 className={`navbar-link ${isActive('/editor') || location.pathname.startsWith('/editor') ? 'active' : ''}`}
               >
-                Editor
+                Write
+              </Link>
+            </li>
+          )}
+
+          {isAuthenticated && (
+            <li>
+              <Link 
+                to="/open-world" 
+                className={`navbar-link ${isActive('/open-world') ? 'active' : ''}`}
+              >
+                Open World
+              </Link>
+            </li>
+          )}
+
+          {!isAuthenticated && (
+            <li>
+              <Link 
+                to="/about" 
+                className={`navbar-link ${isActive('/about') ? 'active' : ''}`}
+              >
+                About
               </Link>
             </li>
           )}
@@ -84,7 +113,7 @@ const Navbar = () => {
                   </div>
                   <div className="dropdown-divider"></div>
                   <Link to="/editor" className="dropdown-item" onClick={() => setMenuOpen(false)}>
-                    My Posts
+                    My Blogs
                   </Link>
                   <button className="dropdown-item" onClick={() => { logout(); setMenuOpen(false); }}>
                     Sign Out

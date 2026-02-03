@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 import bcrypt
 import os
 import re
-from .database import users_collection, blogs_collection
+from .database import users_collection, blogs_collection, posts_collection
 from .cloudinary_config import upload_image
 
 # Load environment variables
@@ -132,6 +132,7 @@ class BlogCreate(BaseModel):
     excerpt: Optional[str] = None
     tags: Optional[List[str]] = []
     status: Optional[str] = "draft"
+    cover_image: Optional[str] = None
 
 
 class BlogUpdate(BaseModel):
@@ -140,6 +141,7 @@ class BlogUpdate(BaseModel):
     excerpt: Optional[str] = None
     tags: Optional[List[str]] = None
     status: Optional[str] = None
+    cover_image: Optional[str] = None
 
 
 class Blog(BaseModel):
@@ -150,9 +152,33 @@ class Blog(BaseModel):
     tags: List[str] = []
     status: str = "draft"
     read_time: int = 1
+    cover_image: Optional[str] = None
     author_id: str
     author_name: str
     author_username: str
+    author_avatar: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+# Post Models (Quick posts for feed)
+class PostCreate(BaseModel):
+    content: str
+    category: str
+    post_type: str  # Imagination, Feeling, Opinion, Question
+
+
+class Post(BaseModel):
+    id: str
+    content: str
+    category: str
+    post_type: str
+    author_id: str
+    author_name: str
+    author_username: str
+    author_avatar: Optional[str] = None
+    likes_count: int = 0
+    comments_count: int = 0
     created_at: str
     updated_at: str
 
@@ -349,6 +375,16 @@ async def get_blog(blog_id: str, current_user: Optional[dict] = Depends(get_curr
     return blog
 
 
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Upload a file to Cloudinary"""
+    try:
+        url = upload_image(file.file)
+        return {"url": url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
+
+
 @app.post("/api/blogs", response_model=Blog)
 async def create_blog(blog_data: BlogCreate, current_user: dict = Depends(get_current_user)):
     """Create a new blog post"""
@@ -367,9 +403,11 @@ async def create_blog(blog_data: BlogCreate, current_user: dict = Depends(get_cu
         "tags": blog_data.tags or [],
         "status": blog_data.status or "draft",
         "read_time": calculate_read_time(blog_data.content),
+        "cover_image": blog_data.cover_image,
         "author_id": current_user["_id"],
         "author_name": current_user["display_name"],
         "author_username": current_user["username"],
+        "author_avatar": current_user.get("avatar"),
         "created_at": now,
         "updated_at": now
     }
@@ -403,6 +441,8 @@ async def update_blog(blog_id: str, blog_data: BlogUpdate, current_user: dict = 
         update_data["tags"] = blog_data.tags
     if blog_data.status is not None:
         update_data["status"] = blog_data.status
+    if blog_data.cover_image is not None:
+        update_data["cover_image"] = blog_data.cover_image
     
     await blogs_collection.update_one({"_id": blog_id}, {"$set": update_data})
     
@@ -424,3 +464,97 @@ async def delete_blog(blog_id: str, current_user: dict = Depends(get_current_use
     
     await blogs_collection.delete_one({"_id": blog_id})
     return {"message": "Blog deleted successfully"}
+
+
+# Post Endpoints (Quick posts for feed)
+@app.get("/api/posts", response_model=List[Post])
+async def get_posts(
+    category: Optional[str] = None,
+    post_type: Optional[str] = None,
+    author_id: Optional[str] = None,
+    current_user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """Get all posts with optional filters"""
+    query = {}
+    
+    if author_id:
+        query["author_id"] = author_id
+    if category:
+        query["category"] = category
+    if post_type:
+        query["post_type"] = post_type
+    
+    posts = await posts_collection.find(query).sort("created_at", -1).to_list(length=100)
+    
+    # Convert _id to id for response
+    for post in posts:
+        post["id"] = post.pop("_id")
+    
+    return posts
+
+
+@app.post("/api/posts", response_model=Post)
+async def create_post(post_data: PostCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new post"""
+    import uuid
+    
+    post_id = str(uuid.uuid4())
+    now = datetime.now().isoformat()
+    
+    post = {
+        "_id": post_id,
+        "content": post_data.content,
+        "category": post_data.category,
+        "post_type": post_data.post_type,
+        "author_id": current_user["_id"],
+        "author_name": current_user["display_name"],
+        "author_username": current_user["username"],
+        "author_avatar": current_user.get("avatar"),
+        "likes_count": 0,
+        "comments_count": 0,
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    await posts_collection.insert_one(post)
+    post["id"] = post.pop("_id")
+    return post
+
+
+@app.delete("/api/posts/{post_id}")
+async def delete_post(post_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a post"""
+    post = await posts_collection.find_one({"_id": post_id})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Check if user owns this post
+    if post["author_id"] != current_user["_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this post")
+    
+    await posts_collection.delete_one({"_id": post_id})
+    return {"message": "Post deleted successfully"}
+
+
+@app.get("/api/feed")
+async def get_feed(limit: int = 50, current_user: Optional[dict] = Depends(get_current_user_optional)):
+    """Get mixed feed of posts and blogs"""
+    
+    # Fetch posts
+    posts = await posts_collection.find().sort("created_at", -1).limit(limit).to_list(length=limit)
+    for post in posts:
+        post["id"] = post.pop("_id")
+        post["type"] = "post"
+        
+    # Fetch blogs (only published)
+    blogs = await blogs_collection.find({"status": "published"}).sort("created_at", -1).limit(limit).to_list(length=limit)
+    for blog in blogs:
+        blog["id"] = blog.pop("_id")
+        blog["type"] = "blog"
+        
+    combined = posts + blogs
+    # Sort by created_at desc
+    combined.sort(key=lambda x: x["created_at"], reverse=True)
+    
+    return combined[:limit]
+

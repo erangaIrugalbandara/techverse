@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import './BlogCard.css';
 
 interface BlogCardProps {
-  id: number;
+  id: string;
   title: string;
   excerpt: string;
   tags: string[];

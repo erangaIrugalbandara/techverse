@@ -4,7 +4,7 @@ import BlogCard from '../components/BlogCard';
 import './Posts.css';
 
 interface Blog {
-  id: number;
+  id: string;
   title: string;
   content: string;
   excerpt: string;
@@ -22,6 +22,7 @@ const Posts = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('newest');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [allTags, setAllTags] = useState<string[]>([]);
 
   useEffect(() => {
@@ -118,6 +119,23 @@ const Posts = () => {
             <option value="updated">Recently updated</option>
           </select>
         </div>
+
+        <div className="view-toggle">
+          <button 
+            className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+            onClick={() => setViewMode('grid')}
+            title="Grid View"
+          >
+            ⊞
+          </button>
+          <button 
+            className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+            onClick={() => setViewMode('list')}
+            title="List View"
+          >
+            ☰
+          </button>
+        </div>
       </div>
 
       {allTags.length > 0 && (
@@ -147,7 +165,7 @@ const Posts = () => {
           <p>No posts found.</p>
         </div>
       ) : (
-        <div className="blog-grid">
+        <div className={`blog-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
           {filteredBlogs.map((blog) => (
             <BlogCard
               key={blog.id}

@@ -4,6 +4,8 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Posts from './pages/Posts';
 import About from './pages/About';
+import Feed from './pages/Feed';
+import OpenWorld from './pages/OpenWorld';
 import Editor from './pages/Editor';
 import BlogView from './pages/BlogView';
 import SignUp from './pages/SignUp';
@@ -21,6 +23,8 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/posts" element={<Posts />} />
         <Route path="/about" element={<About />} />
+        <Route path="/feed" element={<Feed />} />
+        <Route path="/open-world" element={<OpenWorld />} />
         <Route path="/editor" element={<Editor />} />
         <Route path="/blog/:id" element={<BlogView />} />
         <Route path="/signup" element={<SignUp />} />
